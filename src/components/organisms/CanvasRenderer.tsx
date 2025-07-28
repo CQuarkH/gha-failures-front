@@ -95,29 +95,56 @@ export const CanvasRenderer = ({
     const drawConnections = useCallback((ctx: CanvasRenderingContext2D) => {
         ctx.strokeStyle = '#6b7280';
         ctx.lineWidth = getScaledLineWidth(1);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
         connections.forEach(conn => {
+            const startX = conn.from.x;
+            const startY = conn.from.y;
+            const endX = conn.to.x;
+            const endY = conn.to.y;
+
+            // Calcular puntos intermedios
+            const midX = startX + (endX - startX) * 0.5;
+            const cornerRadius = getScaledLineWidth(6);
+
             ctx.beginPath();
-            ctx.moveTo(conn.from.x, conn.from.y);
-            ctx.lineTo(conn.to.x, conn.to.y);
+            ctx.moveTo(startX, startY);
+
+            // Si las alturas son muy diferentes, crear esquinas redondeadas
+            if (Math.abs(endY - startY) > cornerRadius * 2) {
+                // Línea horizontal hasta antes del primer giro
+                ctx.lineTo(midX - cornerRadius, startY);
+
+                // Primera esquina redondeada
+                ctx.arcTo(midX, startY, midX, startY + (endY > startY ? cornerRadius : -cornerRadius), cornerRadius);
+
+                // Línea vertical
+                ctx.lineTo(midX, endY + (endY > startY ? -cornerRadius : cornerRadius));
+
+                // Segunda esquina redondeada
+                ctx.arcTo(midX, endY, midX + cornerRadius, endY, cornerRadius);
+
+                // Línea horizontal final
+                ctx.lineTo(endX, endY);
+            } else {
+                // Si están a la misma altura o muy cerca, línea directa
+                ctx.lineTo(endX, endY);
+            }
+
             ctx.stroke();
 
-            // Draw arrow
-            const angle = Math.atan2(conn.to.y - conn.from.y, conn.to.x - conn.from.x);
+            // Dibujar flecha triangular
             const arrowLength = getScaledLineWidth(8);
+            const arrowWidth = getScaledLineWidth(4);
 
             ctx.beginPath();
-            ctx.moveTo(conn.to.x, conn.to.y);
-            ctx.lineTo(
-                conn.to.x - arrowLength * Math.cos(angle - Math.PI / 6),
-                conn.to.y - arrowLength * Math.sin(angle - Math.PI / 6)
-            );
-            ctx.moveTo(conn.to.x, conn.to.y);
-            ctx.lineTo(
-                conn.to.x - arrowLength * Math.cos(angle + Math.PI / 6),
-                conn.to.y - arrowLength * Math.sin(angle + Math.PI / 6)
-            );
-            ctx.stroke();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(endX - arrowLength, endY - arrowWidth);
+            ctx.lineTo(endX - arrowLength, endY + arrowWidth);
+            ctx.closePath();
+            ctx.fillStyle = '#6b7280';
+            ctx.fill();
         });
     }, [connections, getScaledLineWidth]);
 
