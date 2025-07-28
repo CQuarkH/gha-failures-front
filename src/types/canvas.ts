@@ -19,6 +19,8 @@ export interface CanvasElement {
 export interface Connection {
     from: { x: number; y: number };
     to: { x: number; y: number };
+    fromLayer: number;
+    toLayer: number;
 }
 
 export interface LayerBounds {

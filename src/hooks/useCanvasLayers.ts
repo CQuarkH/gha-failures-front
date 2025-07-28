@@ -1,4 +1,3 @@
-// hooks/useCanvasLayers.ts
 import { useCallback, useState } from 'react';
 import type { CanvasElement, Connection, LayerBounds } from '../types/canvas';
 import type { GHRun } from '../models/GHRun';
@@ -63,33 +62,58 @@ export const useCanvasLayers = () => {
     const clearLayersFrom = useCallback((layer: number) => {
         setElements(prev => prev.filter(el => el.layer < layer));
 
-        setConnections(prev => prev.filter(conn => {
-            const toElement = elements.find(el =>
-                conn.to.x >= el.x && conn.to.x <= el.x + el.width &&
-                conn.to.y >= el.y - el.height / 2 && conn.to.y <= el.y + el.height / 2
-            );
-            return !toElement || toElement.layer < layer;
-        }));
-    }, [elements]);
+        // Eliminar todas las conexiones que involucren capas >= layer
+        setConnections(prev => prev.filter(conn =>
+            conn.fromLayer < layer && conn.toLayer < layer
+        ));
+    }, []);
 
     const clearConnectionsFromElement = useCallback((fromElement: CanvasElement) => {
         setConnections(prev => prev.filter(conn => {
             const isFromThisElement =
                 conn.from.x === fromElement.x + fromElement.width &&
-                Math.abs(conn.from.y - (fromElement.y + fromElement.height / 2)) < 1;
+                Math.abs(conn.from.y - (fromElement.y + fromElement.height / 2)) < 1 &&
+                conn.fromLayer === fromElement.layer;
 
             return !isFromThisElement;
         }));
+    }, []);
+
+    const clearConnectionsFromLayer = useCallback((layer: number) => {
+        setConnections(prev => prev.filter(conn => conn.fromLayer !== layer));
+    }, []);
+
+    const clearConnectionsToLayer = useCallback((layer: number) => {
+        setConnections(prev => prev.filter(conn => conn.toLayer !== layer));
     }, []);
 
     const getConnectionsToElement = useCallback((toElement: CanvasElement): Connection[] => {
         return connections.filter(conn => {
             const isToThisElement =
                 Math.abs(conn.to.x - toElement.x) < 1 &&
-                Math.abs(conn.to.y - (toElement.y + toElement.height / 2)) < 1;
+                Math.abs(conn.to.y - (toElement.y + toElement.height / 2)) < 1 &&
+                conn.toLayer === toElement.layer;
             return isToThisElement;
         });
     }, [connections]);
+
+    const createConnection = useCallback((
+        fromElement: CanvasElement,
+        toElement: CanvasElement
+    ): Connection => {
+        return {
+            from: {
+                x: fromElement.x + fromElement.width,
+                y: fromElement.y + fromElement.height / 2
+            },
+            to: {
+                x: toElement.x,
+                y: toElement.y + toElement.height / 2
+            },
+            fromLayer: fromElement.layer,
+            toLayer: toElement.layer
+        };
+    }, []);
 
     const createRunsLayer = useCallback((runs: GHRun[]) => {
         const newElements: CanvasElement[] = [];
@@ -129,6 +153,7 @@ export const useCanvasLayers = () => {
         const parentElement = elements.find(el => el.data === parentRun);
         if (!parentElement) return;
 
+        // Limpiar conexiones del elemento padre y capas superiores
         clearConnectionsFromElement(parentElement);
         clearLayersFrom(2);
 
@@ -161,27 +186,23 @@ export const useCanvasLayers = () => {
 
         attemptElements = alignWithParent(parentElement, attemptElements);
 
-        const newConnections = attemptElements.map(element => ({
-            from: {
-                x: parentElement.x + parentElement.width,
-                y: parentElement.y + parentElement.height / 2
-            },
-            to: {
-                x: element.x,
-                y: element.y + element.height / 2
-            }
-        }));
+        // Crear nuevas conexiones usando la función helper
+        const newConnections = attemptElements.map(element =>
+            createConnection(parentElement, element)
+        );
 
+        // Obtener conexiones existentes hacia el elemento padre
         const connectionsToParent = getConnectionsToElement(parentElement);
 
         setElements([...existingElements, ...attemptElements]);
         setConnections([...connectionsToParent, ...newConnections]);
-    }, [elements, clearConnectionsFromElement, clearLayersFrom, getNextLayerX, alignWithParent, getConnectionsToElement]);
+    }, [elements, clearConnectionsFromElement, clearLayersFrom, getNextLayerX, alignWithParent, getConnectionsToElement, createConnection]);
 
     const createJobsLayer = useCallback((jobs: GHJob[], parentAttempt: GHRunAttempt) => {
         const parentElement = elements.find(el => el.data === parentAttempt);
         if (!parentElement) return;
 
+        // Limpiar conexiones del elemento padre y capas superiores
         clearConnectionsFromElement(parentElement);
         clearLayersFrom(3);
 
@@ -214,33 +235,25 @@ export const useCanvasLayers = () => {
 
         jobElements = alignWithParent(parentElement, jobElements);
 
-        const newConnections = jobElements.map(element => ({
-            from: {
-                x: parentElement.x + parentElement.width,
-                y: parentElement.y + parentElement.height / 2
-            },
-            to: {
-                x: element.x,
-                y: element.y + element.height / 2
-            }
-        }));
+        // Crear nuevas conexiones usando la función helper
+        const newConnections = jobElements.map(element =>
+            createConnection(parentElement, element)
+        );
 
-        const existingConnections = connections.filter(conn => {
-            const fromElement = elements.find(el =>
-                conn.from.x === el.x + el.width &&
-                Math.abs(conn.from.y - (el.y + el.height / 2)) < 1
-            );
-            return fromElement && fromElement.layer < 3;
-        });
+        // Solo mantener conexiones que no involucren la capa 3 o superior
+        const existingConnections = connections.filter(conn =>
+            conn.fromLayer < 3 && conn.toLayer < 3
+        );
 
         setElements([...existingElements, ...jobElements]);
         setConnections([...existingConnections, ...newConnections]);
-    }, [elements, connections, clearConnectionsFromElement, clearLayersFrom, getNextLayerX, alignWithParent]);
+    }, [elements, connections, clearConnectionsFromElement, clearLayersFrom, getNextLayerX, alignWithParent, createConnection]);
 
     const createStepsLayer = useCallback((steps: GHStep[], parentJob: GHJob) => {
         const parentElement = elements.find(el => el.data === parentJob);
         if (!parentElement) return;
 
+        // Limpiar conexiones del elemento padre y capas superiores
         clearConnectionsFromElement(parentElement);
         clearLayersFrom(4);
 
@@ -273,33 +286,25 @@ export const useCanvasLayers = () => {
 
         stepElements = alignWithParent(parentElement, stepElements);
 
-        const newConnections = stepElements.map(element => ({
-            from: {
-                x: parentElement.x + parentElement.width,
-                y: parentElement.y + parentElement.height / 2
-            },
-            to: {
-                x: element.x,
-                y: element.y + element.height / 2
-            }
-        }));
+        // Crear nuevas conexiones usando la función helper
+        const newConnections = stepElements.map(element =>
+            createConnection(parentElement, element)
+        );
 
-        const existingConnections = connections.filter(conn => {
-            const fromElement = elements.find(el =>
-                conn.from.x === el.x + el.width &&
-                Math.abs(conn.from.y - (el.y + el.height / 2)) < 1
-            );
-            return fromElement && fromElement.layer < 4;
-        });
+        // Solo mantener conexiones que no involucren la capa 4 o superior
+        const existingConnections = connections.filter(conn =>
+            conn.fromLayer < 4 && conn.toLayer < 4
+        );
 
         setElements([...existingElements, ...stepElements]);
         setConnections([...existingConnections, ...newConnections]);
-    }, [elements, connections, clearConnectionsFromElement, clearLayersFrom, getNextLayerX, alignWithParent]);
+    }, [elements, connections, clearConnectionsFromElement, clearLayersFrom, getNextLayerX, alignWithParent, createConnection]);
 
     const createMicroprintLayer = useCallback((log: string, parentStep: GHStep) => {
         const parentElement = elements.find(el => el.data === parentStep);
         if (!parentElement || !log) return;
 
+        // Limpiar conexiones del elemento padre y capas superiores
         clearConnectionsFromElement(parentElement);
         clearLayersFrom(5);
 
@@ -329,7 +334,9 @@ export const useCanvasLayers = () => {
         };
 
         const existingElements = elements.filter(el => el.layer < 5);
-        const newConnection = {
+
+        // Crear nueva conexión usando la función helper
+        const newConnection: Connection = {
             from: {
                 x: parentElement.x + parentElement.width,
                 y: parentElement.y + parentElement.height / 2
@@ -337,16 +344,15 @@ export const useCanvasLayers = () => {
             to: {
                 x,
                 y: CANVAS_CONSTANTS.START_Y + height / 2
-            }
+            },
+            fromLayer: parentElement.layer,
+            toLayer: 5
         };
 
-        const existingConnections = connections.filter(conn => {
-            const fromElement = elements.find(el =>
-                conn.from.x === el.x + el.width &&
-                Math.abs(conn.from.y - (el.y + el.height / 2)) < 1
-            );
-            return fromElement && fromElement.layer < 5;
-        });
+        // Solo mantener conexiones que no involucren la capa 5 o superior
+        const existingConnections = connections.filter(conn =>
+            conn.fromLayer < 5 && conn.toLayer < 5
+        );
 
         setElements([...existingElements, element]);
         setConnections([...existingConnections, newConnection]);
@@ -362,6 +368,9 @@ export const useCanvasLayers = () => {
         createAttemptsLayer,
         createJobsLayer,
         createStepsLayer,
-        createMicroprintLayer
+        createMicroprintLayer,
+        clearConnectionsFromLayer,
+        clearConnectionsToLayer,
+        createConnection
     };
 };
