@@ -54,6 +54,7 @@ export const CanvasContainer = ({ data }: CanvasContainerProps) => {
     const {
         hoveredElement,
         selectedElements,
+        lastSelectedElement,
         selectedMicroprintSegment,
         tooltip,
         logPanel,
@@ -114,7 +115,7 @@ export const CanvasContainer = ({ data }: CanvasContainerProps) => {
     return (
         <div className="flex-1 rounded-lg overflow-hidden relative">
             <div className="flex flex-col gap-5 absolute top-0 left-0 p-5">
-                <WorkflowStats runs={data} />
+                <WorkflowStats runs={data} lastSelectedElement={lastSelectedElement} />
                 <WorkflowActors runs={data} />
             </div>
 

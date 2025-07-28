@@ -28,6 +28,7 @@ export const useCanvasInteractions = ({
 }: UseCanvasInteractionsProps) => {
     const [hoveredElement, setHoveredElement] = useState<CanvasElement | null>(null);
     const [selectedElements, setSelectedElements] = useState<Map<number, CanvasElement>>(new Map());
+    const [lastSelectedElement, setLastSelectedElement] = useState<CanvasElement | null>(null);
     const [selectedMicroprintSegment, setSelectedMicroprintSegment] = useState<SelectedMicroprintSegment | null>(null);
     const [tooltip, setTooltip] = useState<TooltipState>({ x: 0, y: 0, visible: false });
     const [logPanel, setLogPanel] = useState<LogPanelState>({
@@ -82,6 +83,7 @@ export const useCanvasInteractions = ({
 
         if (element) {
             setSelectedElements(prev => new Map(prev.set(element.layer, element)));
+            setLastSelectedElement(element);
 
             switch (element.type) {
                 case 'run':
@@ -116,6 +118,8 @@ export const useCanvasInteractions = ({
                     }
                     break;
             }
+        } else {
+            setLastSelectedElement(null);
         }
     }, [
         getElementAt,
@@ -154,6 +158,7 @@ export const useCanvasInteractions = ({
     return {
         hoveredElement,
         selectedElements,
+        lastSelectedElement,
         selectedMicroprintSegment,
         tooltip,
         logPanel,
