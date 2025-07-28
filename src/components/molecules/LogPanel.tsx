@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import type { LogSegment } from '../../pages/WorkflowLayerDesign';
+import type { LogSegment } from '../../pages/WorkflowCanvasPage';
 
 interface LogPanelProps {
     segments: LogSegment[];

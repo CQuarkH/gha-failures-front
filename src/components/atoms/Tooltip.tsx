@@ -1,4 +1,4 @@
-import type { CanvasElement, LogSegment } from "../../pages/WorkflowLayerDesign";
+import type { CanvasElement, LogSegment } from "../../pages/WorkflowCanvasPage";
 import { TimeUtils } from "../../utils/TimeUtils";
 
 interface TooltipProps {

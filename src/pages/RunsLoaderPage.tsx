@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { WorkflowLayerDesign } from './WorkflowLayerDesign'
+import { WorkflowCanvasPage } from './WorkflowCanvasPage'
 import { GHRun } from '../models/GHRun'
 
 interface Workflow {
@@ -102,7 +102,7 @@ export default function RunsLoaderPage() {
 
             {loading && <p>Cargando runs…</p>}
             {runs.length > 0 && (
-                <WorkflowLayerDesign data={runs} name={`${selected!} - ${repo}`} />
+                <WorkflowCanvasPage data={runs} name={`${selected!} - ${repo}`} />
             )}
         </div>
     )
